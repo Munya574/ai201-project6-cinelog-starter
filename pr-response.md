@@ -1,7 +1,11 @@
 # PR Response Doc — CineLog Watchlist Feature
 
 ## AI Usage
-<!-- Fill in at the end — how you used AI tools during this project -->
+I used Claude (AI assistant) throughout this project for:
+- **Codebase orientation**: Summarized `models.py`, `services/collection_service.py`, and `tests/test_collection.py` to understand naming conventions, deduplication patterns, and test structure before making changes.
+- **Understanding patterns**: Asked the AI to walk through what `add_to_collection()`'s duplicate check does so I could write an equivalent for `add_to_watchlist()`.
+- **Git mechanics**: Used AI to understand and safely execute the rebase onto UUID main, including resolving conflicts in `models.py` where WatchlistEntry's film_id needed to change from Integer to String(36).
+- **Design reasoning**: For Comments 4 and 5 (visibility and sort order), I wrote my own positions and reasoning. I then used AI as a devil's advocate to stress-test my arguments before finalizing them in the pr-response.md.
 
 ## Comment 1 — Rename
 **What I did:**
@@ -65,4 +69,61 @@ While the PR was open, main was refactored to migrate Film IDs from integer to U
 - `pytest tests/ -v` passes all 8 tests (4 collection + 4 watchlist) against the UUID codebase, confirming the watchlist code works end-to-end after the migration.
 
 ## PR Description
-<!-- Written at the end — feature overview, design decisions, manual testing steps -->
+
+### What this feature does
+Adds a **watchlist** to CineLog — a per-user list of films a user wants to watch later, parallel to the existing "collection" (films already watched). It provides:
+- `POST /watchlist/<user_id>/add` with body `{ "film_id": "<uuid>" }` — adds a film to the user's watchlist. Returns **201** with the new entry, **404** if the film doesn't exist, **409** if the film is already on that user's watchlist (deduplication), and **400** if `film_id` is missing.
+- `GET /watchlist/<user_id>` — returns the user's watchlist. Sorted by date-added (newest first) by default; pass `?sort=title` for alphabetical order.
+
+It follows the conventions already established by the collection service: the `verb_to_noun` naming (`add_to_watchlist`), a custom `AlreadyInWatchlistError` for duplicates, and the same fixture/assertion style in the tests. It also fixes a latent bug the new tests surfaced — `Film` was missing its relationship to `WatchlistEntry`.
+
+### Design decisions
+1. **Default visibility = private.** New watchlist entries default to private rather than public. This optimizes for user privacy and trust: sharing should be an explicit, opt-in choice, since content that becomes public is effectively impossible to fully retract. The tradeoff is a quieter community — some profiles will look empty because users never opt in to sharing. However, privacy-first builds trust, and trust is what gets users to share willingly rather than reluctantly. (See Comment 4 for full reasoning.)
+
+2. **Default sort = date-added (newest first), with an opt-in `?sort=title`.** The default matches the collection endpoint (consistency) and treats the watchlist as a "what's fresh to watch next" feed. Alphabetical ordering is preserved as a caller-specified option for finding a specific title in a long list, rather than being discarded. (See Comment 5 for full reasoning.)
+
+### How to manually test
+Run everything from the project root so the app and seed snippet share the same database.
+
+```bash
+# 1. Start the app (Terminal 1) — runs at http://127.0.0.1:5000
+python app.py
+
+# 2. Seed one user + one film and print their IDs (Terminal 2)
+python - <<'PY'
+from app import create_app, db
+from models import User, Film
+app = create_app()
+with app.app_context():
+    u = User(username="demo", email="demo@example.com")
+    f = Film(title="Paddington 2", year=2017, genre="Comedy")
+    db.session.add_all([u, f]); db.session.commit()
+    print("USER_ID:", u.id)
+    print("FILM_ID:", f.id)
+PY
+
+# 3. Add the film to the watchlist  -> expect HTTP 201
+curl -i -X POST http://127.0.0.1:5000/watchlist/<USER_ID>/add \
+  -H "Content-Type: application/json" -d '{"film_id": "<FILM_ID>"}'
+
+# 4. Add the SAME film again        -> expect HTTP 409 (deduplication)
+curl -i -X POST http://127.0.0.1:5000/watchlist/<USER_ID>/add \
+  -H "Content-Type: application/json" -d '{"film_id": "<FILM_ID>"}'
+
+# 5. Add a film that doesn't exist  -> expect HTTP 404
+curl -i -X POST http://127.0.0.1:5000/watchlist/<USER_ID>/add \
+  -H "Content-Type: application/json" -d '{"film_id": "00000000-0000-0000-0000-000000000000"}'
+
+# 6. View the watchlist (default: newest-added first)
+curl http://127.0.0.1:5000/watchlist/<USER_ID>
+
+# 7. View it alphabetically by title
+curl "http://127.0.0.1:5000/watchlist/<USER_ID>?sort=title"
+```
+
+You can also run the automated suite: `pytest tests/ -v` (8 tests, all passing).
+
+### Commit history
+`git log --oneline` on `feature/watchlist` — 7 commits rebased on updated main, no merge commits:
+
+![git log --oneline](docs/git-log-screenshot.png)
