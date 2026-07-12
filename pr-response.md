@@ -34,18 +34,18 @@ While adding the sort-order test, we discovered a latent bug: `get_watchlist()` 
 Ran `pytest tests/test_watchlist.py -v` and all 4 watchlist tests pass. Then ran the full suite `pytest tests/ -v`; all 8 tests pass (4 collection + 4 watchlist), confirming the new tests integrate cleanly and the relationship fix allows `get_watchlist()` to load films correctly.
 
 ## Comment 4 — Default visibility
-**My position:**
+**My position:** Watchlist entries should default to private, not public.
 
-**Reasoning:**
+**Reasoning:** Privacy should be the default. A watchlist is inherently personal — it tracks what you're curious about, what's on your mind, what you haven't gotten to yet. Sometimes you don't want others to know what you're watching, especially before you've actually seen it. Making privacy the default respects user autonomy: they can explicitly choose to share if they want to, but they shouldn't have to opt out of exposure. Public sharing should be an intentional, deliberate choice, not something that happens by accident.
 
-**Tradeoff acknowledged:**
+**Tradeoff acknowledged:** The obvious cost is a quieter community — fewer public watchlists visible to discover what others are watching. This undermines CineLog's goal as a community app. Some profiles will look empty because users never opt in to sharing. However, I believe privacy-first builds trust, and trust is what gets users to share willingly rather than reluctantly.
 
 ## Comment 5 — Sort order
-**My position:**
+**My position:** The watchlist should default to newest-added first (most recently added first), matching the collection's sort order.
 
-**Reasoning:**
+**Reasoning:** Date-added (newest first) gives a sense of freshness and recency. When I open my watchlist, I want to see what I just added — that recent film I'm excited about — near the top. It also helps users track their own behavior: "Did I actually watch that film I added six months ago?" By seeing recent additions first, users can gauge their watchlist habits over time. Additionally, sorting by date-added provides consistency with `get_collection()`, which already sorts newest-first — users expect the same chronological ordering across similar features.
 
-**Engagement with reviewer's point:**
+**Engagement with reviewer's point:** I understand the value of alphabetical sorting for discoverability in a long list, so I've implemented date-added as the default with an optional `?sort=title` query parameter. This keeps the default behavior consistent with the collection and optimized for the common case (browsing recent additions), while preserving alphabetical lookup for users who need it when their watchlist grows large.
 
 ## Comment 6 — Rebase
 **What conflicted:**
