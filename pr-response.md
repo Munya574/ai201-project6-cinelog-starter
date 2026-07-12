@@ -12,8 +12,13 @@ Ran a project-wide search for the old name `save_to_watchlist` to confirm no oth
 
 ## Comment 2 — Deduplication
 **What I did:**
+Followed the exact pattern used by `add_to_collection()` in `services/collection_service.py`:
+- Added an `AlreadyInWatchlistError` exception class at the top of `services/watchlist_service.py`, mirroring `AlreadyInCollectionError`.
+- In `add_to_watchlist()`, after the film-exists check, I query for an existing `WatchlistEntry` with the same `user_id` and `film_id` using `filter_by(...).first()`. If one exists, I raise `AlreadyInWatchlistError` before creating a new entry.
+- Updated the route (`routes/watchlist/watchlist.py`) to catch both `FilmNotFoundError` (returning **404**) and the new `AlreadyInWatchlistError` (returning **409 Conflict**) with proper error handling in a try-except block.
 
 **How I verified:**
+The deduplication check mirrors the pattern in `add_to_collection()`, where an existing entry lookup returns `None` on no duplicate and a truthy `WatchlistEntry` when there is one. Ran `pytest tests/ -v`; all 4 collection tests still pass, confirming the added logic and route error-handling didn't break the happy path.
 
 ## Comment 3 — Missing test
 **What I did:**
