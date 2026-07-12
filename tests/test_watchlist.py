@@ -105,22 +105,28 @@ def test_add_to_watchlist_nonexistent_film_raises(app, sample_user):
 
 # ── get_watchlist sort order ────────────────────────────────────────────────
 
-def test_get_watchlist_returns_alphabetical_by_default(app, sample_user):
+def test_get_watchlist_returns_newest_first_by_default(app, sample_user):
     """
-    get_watchlist() should return films sorted alphabetically by title by default.
+    get_watchlist() should return films sorted by date_added (newest first) by default.
     """
     with app.app_context():
+        from datetime import datetime, timezone, timedelta
+
         film_a = Film(title="Alien", year=1979, genre="Horror")
         film_b = Film(title="Blade Runner", year=1982, genre="Sci-Fi")
         db.session.add_all([film_a, film_b])
         db.session.commit()
 
-        add_to_watchlist(user_id=sample_user, film_id=film_a.id)
-        add_to_watchlist(user_id=sample_user, film_id=film_b.id)
+        earlier = datetime.now(timezone.utc) - timedelta(days=5)
+        # Manually set dates to ensure controlled ordering
+        entry_a = WatchlistEntry(user_id=sample_user, film_id=film_a.id, date_added=earlier)
+        entry_b = WatchlistEntry(user_id=sample_user, film_id=film_b.id)
+        db.session.add_all([entry_a, entry_b])
+        db.session.commit()
 
         watchlist = get_watchlist(sample_user)
         titles = [f["title"] for f in watchlist]
 
-        # Should be alphabetical: Alien comes before Blade Runner
-        assert titles[0] == "Alien"
-        assert titles[1] == "Blade Runner"
+        # Blade Runner was added later, so it should come first
+        assert titles[0] == "Blade Runner"
+        assert titles[1] == "Alien"
