@@ -49,10 +49,20 @@ Ran `pytest tests/test_watchlist.py -v` and all 4 watchlist tests pass. Then ran
 
 ## Comment 6 — Rebase
 **What conflicted:**
+While the PR was open, main was refactored to migrate Film IDs from integer to UUID (commit: "refactor: migrate film IDs from integer to UUID"). When rebasing feature/watchlist onto the updated main, two files conflicted:
+
+1. **`.gitignore`** — an add/add conflict. Both branches added a .gitignore. Main's version didn't include `.pytest_cache/`, so I took the union of both.
+2. **`models.py`** — the WatchlistEntry class (added by our branch) had `film_id = db.Column(db.Integer, ...)`, but main's refactor changed Film.id to UUID (String(36)). This mismatch would have caused foreign key failures.
 
 **How I resolved it:**
+1. Resolved `.gitignore` by keeping all entries from both versions (including `.pytest_cache/`, `.venv/`, etc.).
+2. Resolved `models.py` by updating WatchlistEntry's film_id from `db.Column(db.Integer, db.ForeignKey("film.id"))` to `db.Column(db.String(36), db.ForeignKey("film.id"))` to match the UUID migration. This ensures WatchlistEntry can reference the new UUID-based Film IDs.
+3. Ran `git add models.py` and `git rebase --continue` to complete the rebase.
 
 **How I verified no conflict remains:**
+- `git log --oneline` shows a linear history with no merge commits (the branch was rebased, not merged).
+- `git merge-base --is-ancestor origin/main HEAD` confirms the branch sits cleanly on top of main.
+- `pytest tests/ -v` passes all 8 tests (4 collection + 4 watchlist) against the UUID codebase, confirming the watchlist code works end-to-end after the migration.
 
 ## PR Description
 <!-- Written at the end — feature overview, design decisions, manual testing steps -->
