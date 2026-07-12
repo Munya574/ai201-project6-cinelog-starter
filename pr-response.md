@@ -124,6 +124,6 @@ curl "http://127.0.0.1:5000/watchlist/<USER_ID>?sort=title"
 You can also run the automated suite: `pytest tests/ -v` (8 tests, all passing).
 
 ### Commit history
-`git log --oneline` on `feature/watchlist` — 7 commits rebased on updated main, no merge commits:
+`git log --oneline` on `feature/watchlist` — 8 commits rebased on updated main, no merge commits:
 
-![git log --oneline](docs/git-log-screenshot.png)
+![git log --oneline](docs/Screenshot%202026-07-12%20185942.png)
