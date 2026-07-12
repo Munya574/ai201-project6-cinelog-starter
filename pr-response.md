@@ -22,8 +22,16 @@ The deduplication check mirrors the pattern in `add_to_collection()`, where an e
 
 ## Comment 3 — Missing test
 **What I did:**
+Created `tests/test_watchlist.py`, modeled directly on the collection tests. Reused the same three fixtures (`app` with an in-memory SQLite DB, `sample_user`, `sample_film`) and wrote four comprehensive tests:
+- `test_add_to_watchlist_creates_entry`: Verifies basic add functionality
+- `test_add_to_watchlist_duplicate_raises`: Tests the deduplication logic
+- `test_add_to_watchlist_nonexistent_film_raises`: Tests that adding a non-existent film raises `FilmNotFoundError`
+- `test_get_watchlist_returns_alphabetical_by_default`: Tests the sort order
+
+While adding the sort-order test, we discovered a latent bug: `get_watchlist()` referenced `entry.film`, but the `Film` model had no relationship defined for `WatchlistEntry`. I fixed this by adding `watchlist_entries = db.relationship("WatchlistEntry", backref="film", lazy=True)` to the `Film` class, mirroring the existing `collection_entries` relationship.
 
 **How I verified:**
+Ran `pytest tests/test_watchlist.py -v` and all 4 watchlist tests pass. Then ran the full suite `pytest tests/ -v`; all 8 tests pass (4 collection + 4 watchlist), confirming the new tests integrate cleanly and the relationship fix allows `get_watchlist()` to load films correctly.
 
 ## Comment 4 — Default visibility
 **My position:**
